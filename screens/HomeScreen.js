@@ -1,456 +1,411 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  StatusBar,
-  ScrollView,
-  ImageBackground,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image, Animated, Easing, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Animatable from 'react-native-animatable';
-import LottieView from 'lottie-react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import * as Location from 'expo-location';
+import { MaterialIcons, FontAwesome5, Ionicons, Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
+const HomeScreen = ({ navigation }) => {
+  const [currentTime, setCurrentTime] = useState('');
+  const [pulseAnim] = useState(new Animated.Value(1));
+  const [shakeAnim] = useState(new Animated.Value(0));
+  const [isEmergencyActive, setIsEmergencyActive] = useState(false);
 
-// Medical-grade color palette
-const MEDICAL_COLORS = {
-  primary: '#0A7B79', // Teal - Trust/Healthcare
-  emergency: '#D32F2F', // Red - Emergency
-  accent: '#1976D2', // Blue - Action
-  background: '#F8F9FA', // Light background
-  surface: '#FFFFFF', // Cards/containers
-  textPrimary: '#2E3A4D', // Dark text
-  textSecondary: '#5A6779', // Secondary text
-  success: '#388E3C', // Green - Positive status
-  warning: '#F57C00', // Orange - Warning
-};
-
-function MedicalActionButton({ icon, label, color, onPress, delay, isEmergency = false }) {
-  return (
-    <Animatable.View 
-      animation="fadeInUp" 
-      delay={delay}
-      style={isEmergency ? styles.emergencyButtonWrapper : null}
-    >
-      <TouchableOpacity 
-        style={[
-          styles.actionButton,
-          { backgroundColor: color },
-          isEmergency && styles.emergencyButton
-        ]} 
-        onPress={onPress}
-        activeOpacity={0.9}
-      >
-        <View style={styles.buttonIconContainer}>
-          <Icon 
-            name={icon} 
-            size={isEmergency ? 28 : 24} 
-            color="#FFF" 
-            style={isEmergency ? { marginBottom: 5 } : null}
-          />
-        </View>
-        <Text style={[
-          styles.buttonLabel,
-          isEmergency && styles.emergencyButtonLabel
-        ]}>
-          {label}
-        </Text>
-        {!isEmergency && (
-          <Icon 
-            name="chevron-right" 
-            size={20} 
-            color="rgba(255,255,255,0.7)" 
-            style={styles.buttonChevron}
-          />
-        )}
-      </TouchableOpacity>
-    </Animatable.View>
-  );
-}
-
-export default function HomeScreen({ navigation }) {
-  const [userName] = useState('Sam');
-  const [location, setLocation] = useState(null);
-  const [vitalStatus, setVitalStatus] = useState('Stable');
-
+  // Update time every minute
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
-        setLocation(loc.coords);
-      }
-    })();
-    
-    // Simulate vital status monitoring
-    const interval = setInterval(() => {
-      setVitalStatus(['Stable', 'Normal', 'Good'][Math.floor(Math.random() * 3)]);
-    }, 10000);
-    
+    const updateTime = () => {
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const formattedHours = hours % 12 || 12;
+      setCurrentTime(`${formattedHours}:${minutes} ${ampm}`);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  const medicalFeatures = [
-    { 
-      icon: 'heart-pulse', 
-      label: 'Vitals Check', 
-      color: MEDICAL_COLORS.primary,
-      screen: 'Vitals'
-    },
-    { 
-      icon: 'medical-bag', 
-      label: 'First Aid', 
-      color: MEDICAL_COLORS.accent,
-      screen: 'FirstAid'
-    },
-    { 
-      icon: 'doctor', 
-      label: 'Telemedicine', 
-      color: '#5D5FEF',
-      screen: 'Telemedicine'
-    },
-    { 
-      icon: 'pill', 
-      label: 'Medications', 
-      color: '#6C47FF',
-      screen: 'Medications'
-    },
-    { 
-      icon: 'medical-bag', 
-      label: 'Emergency Kit', 
-      color: MEDICAL_COLORS.warning,
-      screen: 'EmergencyKit'
-    },
-    { 
-      icon: 'history', 
-      label: 'Health Records', 
-      color: '#4E7AC7',
-      screen: 'HealthRecords'
-    },
-  ];
+  // Pulsing animation for emergency button
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  // Shake animation for emergency button
+  const triggerShake = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleEmergencyPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    triggerShake();
+    setIsEmergencyActive(true);
+    
+    // Simulate emergency countdown
+    setTimeout(() => {
+      navigation.navigate('VoiceSOS');
+      setIsEmergencyActive(false);
+    }, 3000);
+  };
+
+  const emergencyButtonScale = pulseAnim.interpolate({
+    inputRange: [1, 1.05],
+    outputRange: [1, 1.05],
+  });
+
+  const emergencyButtonTranslateX = shakeAnim.interpolate({
+    inputRange: [-10, 0, 10],
+    outputRange: [-10, 0, 10],
+  });
+
+  const ActionCard = ({ icon, title, subtitle, color, onPress }) => (
+    <TouchableOpacity 
+      style={[styles.actionCard, { backgroundColor: color }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <View style={styles.actionIconContainer}>
+        {icon}
+      </View>
+      <Text style={styles.actionTitle}>{title}</Text>
+      <Text style={styles.actionSubtitle}>{subtitle}</Text>
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={MEDICAL_COLORS.primary} />
-
-      {/* Header with Medical Gradient */}
-      <LinearGradient 
-        colors={[MEDICAL_COLORS.primary, '#128C8A']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <Text style={styles.greeting}>Welcome back, {userName}</Text>
-          <Text style={styles.subtitle}>Your health and safety come first</Text>
-        </View>
-
-        {/* Vital Status Indicator */}
-        <View style={styles.vitalStatusContainer}>
-          <View style={styles.vitalStatusPill}>
-            <Icon name="heart-pulse" size={16} color="#FFF" />
-            <Text style={styles.vitalStatusText}>{vitalStatus}</Text>
+    <LinearGradient colors={['#0A0F1F', '#1A2138']} style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.greeting}>Hi jhon 👋</Text>
+              <Text style={styles.time}>{currentTime}</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+              <Image 
+                source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} 
+                style={styles.profileImage}
+              />
+            </TouchableOpacity>
           </View>
-        </View>
-      </LinearGradient>
 
-      {/* Emergency SOS Floating Button */}
-      <View style={styles.sosContainer}>
-        <TouchableOpacity
-          style={styles.sosButton}
-          onPress={() => navigation.navigate('Emergency')}
-        >
-          <LottieView
-            source={require('../assets/lottie/ambulance.json')}
-            autoPlay
-            loop
-            style={styles.sosAnimation}
-          />
-          <Text style={styles.sosText}>EMERGENCY</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Main Content */}
-      <ScrollView 
-        style={styles.content}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Location and Emergency Contacts */}
-        <View style={styles.infoSection}>
-          <View style={styles.infoRow}>
-            <Icon name="map-marker" size={18} color={MEDICAL_COLORS.primary} />
-            <Text style={styles.infoText} numberOfLines={1}>
-              {location ? 
-                `Location: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}` : 
-                'Waiting for location...'}
-            </Text>
+          {/* Location Card */}
+          <View style={styles.locationCard}>
+            <Ionicons name="location-sharp" size={20} color="#D62828" />
+            <Text style={styles.locationText}>Bangalore, Karnataka</Text>
+            <Feather name="chevron-right" size={18} color="#999" />
           </View>
-          
-          <TouchableOpacity style={styles.emergencyContactButton}>
-            <Icon name="contacts" size={18} color={MEDICAL_COLORS.emergency} />
-            <Text style={[styles.infoText, { color: MEDICAL_COLORS.emergency }]}>
-              Emergency Contacts
-            </Text>
-            <Icon name="chevron-right" size={18} color={MEDICAL_COLORS.emergency} />
-          </TouchableOpacity>
-        </View>
 
-        {/* Quick Actions Grid */}
-        <Text style={styles.sectionTitle}>Medical Services</Text>
-        <View style={styles.actionsGrid}>
-          {medicalFeatures.map((feature, index) => (
-            <MedicalActionButton
-              key={feature.label}
-              icon={feature.icon}
-              label={feature.label}
-              color={feature.color}
-              delay={100 + (index * 100)}
-              onPress={() => navigation.navigate(feature.screen)}
-            />
-          ))}
-        </View>
-
-        {/* Emergency Services Section */}
-        <Text style={styles.sectionTitle}>Emergency Services</Text>
-        <View style={styles.emergencyServices}>
-          <MedicalActionButton
-            icon="ambulance"
-            label="Call Ambulance"
-            color={MEDICAL_COLORS.emergency}
-            delay={100}
-            isEmergency
-            onPress={() => navigation.navigate('Ambulance')}
-          />
-          <MedicalActionButton
-            icon="hospital"
-            label="Nearest Hospital"
-            color="#C2185B"
-            delay={200}
-            isEmergency
-            onPress={() => navigation.navigate('Hospitals')}
-          />
-        </View>
-
-        {/* Health Tips Section */}
-        <View style={styles.healthTipsContainer}>
-          <Text style={styles.sectionTitle}>Health Tips</Text>
-          <ImageBackground
-            source={require('../assets/images/avatar.png')}
-            style={styles.healthTipCard}
-            imageStyle={{ borderRadius: 12 }}
-          >
-            <LinearGradient
-              colors={['rgba(0,0,0,0.7)', 'transparent']}
-              style={styles.tipGradient}
+          {/* Emergency Button */}
+          <View style={styles.emergencyContainer}>
+            <Animated.View 
+              style={[
+                styles.emergencyButton, 
+                { 
+                  transform: [
+                    { scale: emergencyButtonScale },
+                    { translateX: emergencyButtonTranslateX }
+                  ] 
+                }
+              ]}
             >
-              <Text style={styles.tipTitle}>Stay Hydrated</Text>
-              <Text style={styles.tipText}>
-                Drink at least 8 glasses of water daily to maintain optimal body function.
-              </Text>
-            </LinearGradient>
-          </ImageBackground>
-        </View>
-      </ScrollView>
-    </View>
+              <TouchableOpacity 
+                onPress={handleEmergencyPress}
+                activeOpacity={0.7}
+                style={styles.emergencyTouchable}
+              >
+                <LinearGradient
+                  colors={isEmergencyActive ? ['#FF0000', '#D62828'] : ['#D62828', '#F77F00']}
+                  style={styles.emergencyGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <MaterialIcons name="emergency" size={40} color="white" />
+                  <Text style={styles.emergencyText}>
+                    {isEmergencyActive ? 'SENDING HELP...' : 'VOICE SOS'}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
+            <Text style={styles.emergencySubtext}>
+              Hold or press for emergency assistance
+            </Text>
+          </View>
+
+          {/* Quick Actions */}
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.actionsGrid}>
+            <ActionCard
+              icon={<FontAwesome5 name="ambulance" size={24} color="white" />}
+              title="Request Ambulance"
+              subtitle="Immediate medical transport"
+              color="#0077B6"
+              onPress={() => navigation.navigate('Ambulance')}
+            />
+            <ActionCard
+              icon={<Ionicons name="location" size={24} color="white" />}
+              title="Share Location"
+              subtitle="Send live location"
+              color="#4CAF50"
+              onPress={() => navigation.navigate('ShareLocation')}
+            />
+            <ActionCard
+              icon={<FontAwesome5 name="hands-helping" size={24} color="white" />}
+              title="Volunteer Help"
+              subtitle="Find nearby responders"
+              color="#9C27B0"
+              onPress={() => navigation.navigate('Volunteers')}
+            />
+            <ActionCard
+              icon={<Ionicons name="wallet" size={24} color="white" />}
+              title="Wallet"
+              subtitle="Add credits & subscriptions"
+              color="#FF9800"
+              onPress={() => navigation.navigate('Wallet')}
+            />
+          </View>
+
+          {/* Recent Activity */}
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <View style={styles.activityCard}>
+            <View style={styles.activityHeader}>
+              <Text style={styles.activityTitle}>Last SOS Alert</Text>
+              <Text style={styles.activityTime}>2 days ago</Text>
+            </View>
+            <View style={styles.activityContent}>
+              <View style={styles.activityIcon}>
+                <MaterialIcons name="emergency" size={20} color="#D62828" />
+              </View>
+              <View style={styles.activityDetails}>
+                <Text style={styles.activityText}>Voice SOS triggered</Text>
+                <Text style={styles.activitySubtext}>Ambulance arrived in 8 mins</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.viewAllButton}>
+              <Text style={styles.viewAllText}>View All History</Text>
+              <Feather name="chevron-right" size={16} color="#D62828" />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: MEDICAL_COLORS.background,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  scrollContainer: {
+    padding: 20,
+    paddingBottom: 80,
   },
   header: {
-    height: 200,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 50,
-    paddingBottom: 30,
-  },
-  headerContent: {
-    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   greeting: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#FFF',
-    marginBottom: 4,
+    color: 'white',
+    fontFamily: 'Poppins_600SemiBold',
   },
-  subtitle: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '400',
+  time: {
+    fontSize: 14,
+    color: '#A0A4B8',
+    fontFamily: 'Poppins_400Regular',
   },
-  vitalStatusContainer: {
-    position: 'absolute',
-    top: 50,
-    right: 24,
+  profileImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#D62828',
   },
-  vitalStatusPill: {
+  locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    backgroundColor: '#1E253B',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 25,
   },
-  vitalStatusText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '500',
-    marginLeft: 6,
+  locationText: {
+    color: 'white',
+    marginLeft: 10,
+    flex: 1,
+    fontFamily: 'Poppins_500Medium',
   },
-  sosContainer: {
-    position: 'absolute',
-    top: 170,
-    alignSelf: 'center',
-    zIndex: 10,
+  emergencyContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
   },
-  sosButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: MEDICAL_COLORS.emergency,
+  emergencyButton: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    shadowColor: '#D62828',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+    marginBottom: 10,
+  },
+  emergencyTouchable: {
+    flex: 1,
+    borderRadius: 90,
+    overflow: 'hidden',
+  },
+  emergencyGradient: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
-    shadowColor: MEDICAL_COLORS.emergency,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
   },
-  sosAnimation: {
-    width: 90,
-    height: 90,
-    position: 'absolute',
+  emergencyText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    fontFamily: 'Poppins_700Bold',
   },
-  sosText: {
-    color: '#FFF',
-    fontWeight: '700',
-    fontSize: 12,
-    marginTop: 42,
-    letterSpacing: 0.5,
-  },
-  content: {
-    flex: 1,
-    marginTop: 40,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
-  infoSection: {
-    backgroundColor: MEDICAL_COLORS.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    elevation: 2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  infoText: {
-    marginLeft: 10,
-    color: MEDICAL_COLORS.textPrimary,
+  emergencySubtext: {
+    color: '#A0A4B8',
     fontSize: 14,
-    flex: 1,
-  },
-  emergencyContactButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-    marginTop: 8,
+    textAlign: 'center',
+    fontFamily: 'Poppins_400Regular',
   },
   sectionTitle: {
+    color: 'white',
     fontSize: 18,
     fontWeight: '600',
-    color: MEDICAL_COLORS.textPrimary,
-    marginBottom: 16,
-    marginTop: 8,
+    marginBottom: 15,
+    fontFamily: 'Poppins_600SemiBold',
   },
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    marginBottom: 25,
   },
-  actionButton: {
+  actionCard: {
     width: '48%',
-    height: 100,
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 2,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  buttonIconContainer: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  actionIconContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginBottom: 10,
   },
-  buttonLabel: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-  },
-  buttonChevron: {
-    marginLeft: 'auto',
-  },
-  emergencyButtonWrapper: {
-    width: '100%',
-    marginBottom: 12,
-  },
-  emergencyButton: {
-    width: '100%',
-    height: 60,
-    borderRadius: 10,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  emergencyButtonLabel: {
+  actionTitle: {
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 12,
+    marginBottom: 5,
+    fontFamily: 'Poppins_600SemiBold',
   },
-  emergencyServices: {
-    marginBottom: 20,
+  actionSubtitle: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
   },
-  healthTipsContainer: {
-    marginTop: 8,
-  },
-  healthTipCard: {
-    height: 140,
+  activityCard: {
+    backgroundColor: '#1E253B',
     borderRadius: 12,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
+    padding: 15,
   },
-  tipGradient: {
-    padding: 16,
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
   },
-  tipTitle: {
-    color: '#FFF',
-    fontSize: 18,
+  activityTitle: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: '600',
-    marginBottom: 6,
+    fontFamily: 'Poppins_600SemiBold',
   },
-  tipText: {
-    color: 'rgba(255,255,255,0.9)',
+  activityTime: {
+    color: '#A0A4B8',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+  },
+  activityContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  activityIcon: {
+    backgroundColor: 'rgba(214, 40, 40, 0.2)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  activityDetails: {
+    flex: 1,
+  },
+  activityText: {
+    color: 'white',
     fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+  },
+  activitySubtext: {
+    color: '#A0A4B8',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  viewAllText: {
+    color: '#D62828',
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 5,
+    fontFamily: 'Poppins_600SemiBold',
   },
 });
+
+export default HomeScreen;
